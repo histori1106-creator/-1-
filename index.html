@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Лабораторна робота – Закон збереження механічної енергії</title>
+
+<style>
+body{
+font-family:Arial;
+text-align:center;
+background:#f4f4f4;
+}
+
+canvas{
+background:white;
+border:2px solid #333;
+margin-top:20px;
+}
+
+.controls{
+margin-top:15px;
+}
+
+button{
+margin:5px;
+padding:6px;
+}
+
+input{
+margin:5px;
+padding:6px;
+}
+
+#g{
+width:60px;
+}
+  
+table{
+margin:20px auto;
+border-collapse:collapse;
+background:white;
+}
+
+th,td{
+border:1px solid #333;
+padding:6px 12px;
+}
+
+th{
+background:#ddd;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Лабораторна робота</h2>
+<h3>Вивчення закону збереження механічної енергії</h3>
+
+<canvas id="canvas" width="700" height="350"></canvas>
+
+<div class="controls">
+
+<label>Маса</label>
+<input type="number" id="mass" value="1" step="0.1"> кг
+
+<label>Початкова висота</label>
+<input type="number" id="height" value="5" step="0.5"> м
+
+  <label>g</label>
+<input type="number" id="g" value="9.8" step="0.1"> м/с²
+
+<br>
+
+<label>Швидкість відтворення</label>
+<input type="range" id="timeScale" min="0.1" max="2" step="0.1" value="1" oninput="updateTime()">
+<span id="timeValue">1</span> ×
+
+<br>
+
+<button id="toggleBtn" onclick="toggle()">Почати</button>
+<button onclick="save()">Записати результат</button>
+<button onclick="deleteRow()">Видалити запис</button>
+<button onclick="reset()">Скинути</button>
+
+</div>
+
+<h3>Результати</h3>
+
+<p>Потенціальна енергія: <span id="ep">0.000</span> Дж</p>
+<p>Кінетична енергія: <span id="ek">0.000</span> Дж</p>
+<p>Повна механічна енергія: <span id="em">0.000</span> Дж</p>
+<p>Пройдений шлях: <span id="distance">0.000</span> м</p>
+
+<h3>Таблиця результатів</h3>
+
+<table id="table">
+<tr>
+<th>№</th>
+<th>Маса (кг)</th>
+<th>Висота (м)</th>
+<th>Пройдений шлях (м)</th>
+<th>Ep (Дж)</th>
+<th>Ek (Дж)</th>
+<th>Em (Дж)</th>
+</tr>
+</table>
+
+<script>
+
+const canvas = document.getElementById("canvas")
+const ctx = canvas.getContext("2d")
+
+const radius = 20
+
+let y = 0
+let v = 0
+let running = false
+
+let timeScale = 1
+let distance = 0
+
+let ground = 320
+let scale = 40
+let startY = 0
+let maxHeight = 0
+
+let Em = 0
+
+function updateTime(){
+timeScale = parseFloat(document.getElementById("timeScale").value)
+document.getElementById("timeValue").innerText = timeScale
+}
+
+function toggle(){
+running = !running
+document.getElementById("toggleBtn").innerText = running ? "Пауза" : "Почати"
+}
+
+function draw(){
+
+ctx.clearRect(0,0,canvas.width,canvas.height)
+
+ctx.beginPath()
+ctx.moveTo(0,ground)
+ctx.lineTo(canvas.width,ground)
+ctx.stroke()
+
+ctx.beginPath()
+ctx.arc(350,y,radius,0,Math.PI*2)
+ctx.fillStyle="blue"
+ctx.fill()
+
+}
+
+function setStartPosition(){
+
+let h0 = parseFloat(document.getElementById("height").value)
+let m = parseFloat(document.getElementById("mass").value)
+let g = parseFloat(document.getElementById("g").value)
+
+maxHeight = h0
+
+y = ground - radius - h0 * scale
+startY = y
+
+v = 0
+distance = 0
+
+Em = m * g * h0
+
+}
+
+function animate(){
+
+function frame(){
+
+if(running){
+
+let m = parseFloat(document.getElementById("mass").value)
+let g = parseFloat(document.getElementById("g").value)
+
+v += g * 0.05 * timeScale
+y += v * timeScale
+
+let currentDistance = (y - startY) / scale
+
+if(currentDistance > maxHeight){
+currentDistance = maxHeight
+}
+
+distance = currentDistance
+
+if(y + radius >= ground){
+
+y = ground - radius
+v = 0
+running = false
+distance = maxHeight
+
+document.getElementById("toggleBtn").innerText="Почати"
+
+}
+
+draw()
+
+let height = (ground - radius - y) / scale
+if(height < 0) height = 0
+
+let Ep = m * g * height
+let Ek = Em - Ep
+
+if(y + radius >= ground){
+Ep = 0
+Ek = 0
+}
+
+document.getElementById("ep").innerText = Ep.toFixed(3)
+document.getElementById("ek").innerText = Ek.toFixed(3)
+document.getElementById("em").innerText = (y + radius >= ground ? 0 : Em).toFixed(3)
+document.getElementById("distance").innerText = distance.toFixed(3)
+
+}
+
+requestAnimationFrame(frame)
+
+}
+
+frame()
+
+}
+
+function save(){
+
+let table = document.getElementById("table")
+
+let mass = parseFloat(document.getElementById("mass").value).toFixed(3)
+let height = parseFloat(document.getElementById("height").value).toFixed(3)
+
+let row = table.insertRow()
+
+let n = table.rows.length - 1
+
+row.insertCell(0).innerText = n
+row.insertCell(1).innerText = mass
+row.insertCell(2).innerText = height
+row.insertCell(3).innerText = document.getElementById("distance").innerText
+row.insertCell(4).innerText = document.getElementById("ep").innerText
+row.insertCell(5).innerText = document.getElementById("ek").innerText
+row.insertCell(6).innerText = document.getElementById("em").innerText
+
+}
+
+function deleteRow(){
+
+let table = document.getElementById("table")
+
+if(table.rows.length > 1){
+table.deleteRow(table.rows.length - 1)
+}
+
+}
+
+function reset(){
+
+running = false
+
+setStartPosition()
+draw()
+
+document.getElementById("toggleBtn").innerText="Почати"
+
+document.getElementById("ep").innerText="0.000"
+document.getElementById("ek").innerText="0.000"
+document.getElementById("em").innerText="0.000"
+document.getElementById("distance").innerText="0.000"
+
+}
+
+setStartPosition()
+draw()
+animate()
+
+</script>
+
+</body>
+</html>
