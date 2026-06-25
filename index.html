@@ -2,24 +2,18 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<title>Лабораторна робота – Осцилограф</title>
+<title>Лабораторна робота – Закон збереження механічної енергії</title>
 
 <style>
-
 body{
-background:linear-gradient(120deg,#141e30,#243b55);
 font-family:Arial;
 text-align:center;
-color:white;
-}
-
-h1{
-color:#ffd700;
+background:#f4f4f4;
 }
 
 canvas{
-background:#000;
-border:4px solid #00ffcc;
+background:white;
+border:2px solid #333;
 margin-top:20px;
 }
 
@@ -27,339 +21,265 @@ margin-top:20px;
 margin-top:15px;
 }
 
-input,select{
-padding:6px;
-margin:5px;
-border-radius:6px;
-border:none;
-}
-
 button{
-padding:10px 16px;
 margin:5px;
-border:none;
-border-radius:8px;
-font-size:16px;
-cursor:pointer;
+padding:6px;
 }
 
-#toggle{
-background:#00ff88;
+input{
+margin:5px;
+padding:6px;
 }
 
-#reset{
-background:#ffcc00;
+#g{
+width:60px;
 }
-
-#save{
-background:#00ccff;
-}
-
-.delete{
-background:#ff4444;
-color:white;
-}
-
+  
 table{
-margin:auto;
-margin-top:20px;
+margin:20px auto;
 border-collapse:collapse;
-width:90%;
 background:white;
-color:black;
 }
 
 th,td{
-border:1px solid black;
-padding:8px;
+border:1px solid #333;
+padding:6px 12px;
 }
 
 th{
-background:#ffd700;
+background:#ddd;
 }
-
-.info{
-margin-top:20px;
-font-size:18px;
-}
-
 </style>
 </head>
 
 <body>
 
-<h1>Лабораторна робота: Дослідження сигналу осцилографом</h1>
+<h2>Лабораторна робота</h2>
+<h3>Вивчення закону збереження механічної енергії</h3>
 
-<canvas id="osc" width="800" height="300"></canvas>
+<canvas id="canvas" width="700" height="350"></canvas>
 
 <div class="controls">
 
-<label>Форма сигналу:</label>
-<select id="wave">
-<option value="sin">Синус</option>
-<option value="square">Квадрат</option>
-<option value="triangle">Трикутник</option>
-</select>
+<label>Маса</label>
+<input type="number" id="mass" value="1" step="0.1"> кг
 
-<label>Амплітуда:</label>
-<input id="amp" type="number" value="50">
+<label>Початкова висота</label>
+<input type="number" id="height" value="5" step="0.5"> м
 
-<label>Частота (Гц):</label>
-<input id="freq" type="number" value="2">
-
-<label>Шум:</label>
-<input id="noise" type="number" value="0">
+  <label>g</label>
+<input type="number" id="g" value="9.8" step="0.1"> м/с²
 
 <br>
 
-<button id="toggle" onclick="toggle()">Старт</button>
-<button id="reset" onclick="reset()">Скинути</button>
-<button id="save" onclick="save()">Записати результат</button>
+<label>Швидкість відтворення</label>
+<input type="range" id="timeScale" min="0.1" max="2" step="0.1" value="1" oninput="updateTime()">
+<span id="timeValue">1</span> ×
+
+<br>
+
+<button id="toggleBtn" onclick="toggle()">Почати</button>
+<button onclick="save()">Записати результат</button>
+<button onclick="deleteRow()">Видалити запис</button>
+<button onclick="reset()">Скинути</button>
 
 </div>
 
-<div class="info">
-<p id="result1"></p>
-<p id="result2"></p>
-<p id="result3"></p>
-<p id="result4"></p>
-</div>
+<h3>Результати</h3>
 
-<table id="results">
+<p>Потенціальна енергія: <span id="ep">0.000</span> Дж</p>
+<p>Кінетична енергія: <span id="ek">0.000</span> Дж</p>
+<p>Повна механічна енергія: <span id="em">0.000</span> Дж</p>
+<p>Пройдений шлях: <span id="distance">0.000</span> м</p>
 
+<h3>Таблиця результатів</h3>
+
+<table id="table">
 <tr>
 <th>№</th>
-<th>Форма</th>
-<th>Амплітуда</th>
-<th>Частота (Гц)</th>
-<th>Період (с)</th>
-<th>Шум</th>
-<th>Дія</th>
+<th>Маса (кг)</th>
+<th>Висота (м)</th>
+<th>Пройдений шлях (м)</th>
+<th>Ep (Дж)</th>
+<th>Ek (Дж)</th>
+<th>Em (Дж)</th>
 </tr>
-
 </table>
 
 <script>
 
-let canvas=document.getElementById("osc");
-let ctx=canvas.getContext("2d");
+const canvas = document.getElementById("canvas")
+const ctx = canvas.getContext("2d")
 
-let running=false;
-let t=0;
+const radius = 20
+
+let y = 0
+let v = 0
+let running = false
+
+let timeScale = 1
+let distance = 0
+
+let ground = 320
+let scale = 40
+let startY = 0
+let maxHeight = 0
+
+let Em = 0
+
+function updateTime(){
+timeScale = parseFloat(document.getElementById("timeScale").value)
+document.getElementById("timeValue").innerText = timeScale
+}
 
 function toggle(){
+running = !running
+document.getElementById("toggleBtn").innerText = running ? "Пауза" : "Почати"
+}
 
-running=!running;
+function draw(){
 
-let btn=document.getElementById("toggle");
+ctx.clearRect(0,0,canvas.width,canvas.height)
+
+ctx.beginPath()
+ctx.moveTo(0,ground)
+ctx.lineTo(canvas.width,ground)
+ctx.stroke()
+
+ctx.beginPath()
+ctx.arc(350,y,radius,0,Math.PI*2)
+ctx.fillStyle="blue"
+ctx.fill()
+
+}
+
+function setStartPosition(){
+
+let h0 = parseFloat(document.getElementById("height").value)
+let m = parseFloat(document.getElementById("mass").value)
+let g = parseFloat(document.getElementById("g").value)
+
+maxHeight = h0
+
+y = ground - radius - h0 * scale
+startY = y
+
+v = 0
+distance = 0
+
+Em = m * g * h0
+
+}
+
+function animate(){
+
+function frame(){
 
 if(running){
-btn.textContent="Стоп";
-btn.style.background="#ff4444";
-}else{
-btn.textContent="Старт";
-btn.style.background="#00ff88";
+
+let m = parseFloat(document.getElementById("mass").value)
+let g = parseFloat(document.getElementById("g").value)
+
+v += g * 0.05 * timeScale
+y += v * timeScale
+
+let currentDistance = (y - startY) / scale
+
+if(currentDistance > maxHeight){
+currentDistance = maxHeight
+}
+
+distance = currentDistance
+
+if(y + radius >= ground){
+
+y = ground - radius
+v = 0
+running = false
+distance = maxHeight
+
+document.getElementById("toggleBtn").innerText="Почати"
+
+}
+
+draw()
+
+let height = (ground - radius - y) / scale
+if(height < 0) height = 0
+
+let Ep = m * g * height
+let Ek = Em - Ep
+
+if(y + radius >= ground){
+Ep = 0
+Ek = 0
+}
+
+document.getElementById("ep").innerText = Ep.toFixed(3)
+document.getElementById("ek").innerText = Ek.toFixed(3)
+document.getElementById("em").innerText = (y + radius >= ground ? 0 : Em).toFixed(3)
+document.getElementById("distance").innerText = distance.toFixed(3)
+
+}
+
+requestAnimationFrame(frame)
+
+}
+
+frame()
+
+}
+
+function save(){
+
+let table = document.getElementById("table")
+
+let mass = parseFloat(document.getElementById("mass").value).toFixed(3)
+let height = parseFloat(document.getElementById("height").value).toFixed(3)
+
+let row = table.insertRow()
+
+let n = table.rows.length - 1
+
+row.insertCell(0).innerText = n
+row.insertCell(1).innerText = mass
+row.insertCell(2).innerText = height
+row.insertCell(3).innerText = document.getElementById("distance").innerText
+row.insertCell(4).innerText = document.getElementById("ep").innerText
+row.insertCell(5).innerText = document.getElementById("ek").innerText
+row.insertCell(6).innerText = document.getElementById("em").innerText
+
+}
+
+function deleteRow(){
+
+let table = document.getElementById("table")
+
+if(table.rows.length > 1){
+table.deleteRow(table.rows.length - 1)
 }
 
 }
 
 function reset(){
 
-running=false;
-t=0;
+running = false
 
-ctx.clearRect(0,0,canvas.width,canvas.height);
+setStartPosition()
+draw()
 
-let btn=document.getElementById("toggle");
-btn.textContent="Старт";
-btn.style.background="#00ff88";
+document.getElementById("toggleBtn").innerText="Почати"
 
-}
-
-function getWave(x,type,amp,freq){
-
-if(type==="sin"){
-return amp*Math.sin((x+t)*freq*0.02);
-}
-
-if(type==="square"){
-return amp*Math.sign(Math.sin((x+t)*freq*0.02));
-}
-
-if(type==="triangle"){
-return amp*(2/Math.PI)*Math.asin(Math.sin((x+t)*freq*0.02));
-}
-
-return 0;
+document.getElementById("ep").innerText="0.000"
+document.getElementById("ek").innerText="0.000"
+document.getElementById("em").innerText="0.000"
+document.getElementById("distance").innerText="0.000"
 
 }
 
-function draw(){
-
-ctx.clearRect(0,0,canvas.width,canvas.height);
-
-// ---------- Дрібна сітка ----------
-ctx.strokeStyle="#0b2f2f";
-ctx.lineWidth=0.5;
-
-for(let x=0;x<=canvas.width;x+=10){
-    ctx.beginPath();
-    ctx.moveTo(x,0);
-    ctx.lineTo(x,canvas.height);
-    ctx.stroke();
-}
-
-for(let y=0;y<=canvas.height;y+=10){
-    ctx.beginPath();
-    ctx.moveTo(0,y);
-    ctx.lineTo(canvas.width,y);
-    ctx.stroke();
-}
-
-// ---------- Основна сітка ----------
-ctx.strokeStyle="#1f5f5f";
-ctx.lineWidth=1;
-
-for(let x=0;x<=canvas.width;x+=40){
-    ctx.beginPath();
-    ctx.moveTo(x,0);
-    ctx.lineTo(x,canvas.height);
-    ctx.stroke();
-}
-
-for(let y=0;y<=canvas.height;y+=40){
-    ctx.beginPath();
-    ctx.moveTo(0,y);
-    ctx.lineTo(canvas.width,y);
-    ctx.stroke();
-}
-
-// ---------- Осі ----------
-ctx.strokeStyle="white";
-ctx.lineWidth=2;
-
-// X
-ctx.beginPath();
-ctx.moveTo(0,150);
-ctx.lineTo(canvas.width,150);
-ctx.stroke();
-
-// Y
-ctx.beginPath();
-ctx.moveTo(40,0);
-ctx.lineTo(40,canvas.height);
-ctx.stroke();
-
-// ---------- Поділки ----------
-ctx.lineWidth=1;
-
-for(let x=40;x<=canvas.width;x+=40){
-    ctx.beginPath();
-    ctx.moveTo(x,145);
-    ctx.lineTo(x,155);
-    ctx.stroke();
-}
-
-for(let y=0;y<=canvas.height;y+=40){
-    ctx.beginPath();
-    ctx.moveTo(35,y);
-    ctx.lineTo(45,y);
-    ctx.stroke();
-}
-
-// ---------- Підписи ----------
-ctx.fillStyle="white";
-ctx.font="14px Arial";
-
-ctx.fillStyle="white";
-ctx.font="14px Arial";
-
-ctx.fillText("Напруга (В)",48,18);
-ctx.fillText("Час (с)",canvas.width-45,170);
-
-let amp=Number(document.getElementById("amp").value);
-let freq=Number(document.getElementById("freq").value);
-let noise=Number(document.getElementById("noise").value);
-let wave=document.getElementById("wave").value;
-
-let period=0;
-
-if(freq>0){
-period=(1/freq).toFixed(3);
-}
-
-ctx.beginPath();
-ctx.strokeStyle="lime";
-ctx.lineWidth=2;
-
-for(let x=0;x<canvas.width;x++){
-
-let y=150 + getWave(x,wave,amp,freq);
-
-y += (Math.random()*noise);
-
-ctx.lineTo(x,y);
-
-}
-
-ctx.stroke();
-
-document.getElementById("result1").textContent="Форма сигналу: "+wave;
-document.getElementById("result2").textContent="Амплітуда: "+amp+" В";
-document.getElementById("result3").textContent="Частота: "+freq+" Гц";
-document.getElementById("result4").textContent="Період: "+period+" с";
-
-t+=2;
-
-requestAnimationFrame(loop);
-
-}
-
-function loop(){
-
-if(running){
-draw();
-}else{
-requestAnimationFrame(loop);
-}
-
-}
-
-loop();
-
-function save(){
-
-let table=document.getElementById("results");
-
-let row=table.insertRow();
-
-let i=table.rows.length-1;
-
-let wave=document.getElementById("wave").value;
-let amp=document.getElementById("amp").value;
-let freq=document.getElementById("freq").value;
-let noise=document.getElementById("noise").value;
-
-let period=0;
-
-if(freq>0){
-period=(1/freq).toFixed(3);
-}
-
-row.innerHTML=
-"<td>"+i+"</td>"+
-"<td>"+wave+"</td>"+
-"<td>"+amp+"</td>"+
-"<td>"+freq+"</td>"+
-"<td>"+period+"</td>"+
-"<td>"+noise+"</td>"+
-"<td><button class='delete' onclick='del(this)'>видалити</button></td>";
-
-}
-
-function del(btn){
-btn.parentNode.parentNode.remove();
-}
+setStartPosition()
+draw()
+animate()
 
 </script>
 
